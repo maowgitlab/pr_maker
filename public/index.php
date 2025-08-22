@@ -149,7 +149,7 @@ $prBase = "EBM.PR.LOGISTIK.{$todayCompact}-";
             <!-- Right Section -->
             <div class="flex items-center justify-center sm:justify-end gap-2">
                 <a href="history.php" class="btn btn-ghost">History</a>
-                <span class="text-xs text-gray-500">v1.0</span>
+                <span class="text-xs text-gray-500">v1.1</span>
             </div>
         </div>
     </header>
