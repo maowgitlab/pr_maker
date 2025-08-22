@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/../config.php';
+$isAjax = isset($_POST['ajax']) && $_POST['ajax'] == '1';
 
 // Ambil POST
 $department   = trim($_POST['department'] ?? 'Divisi Logistik');
@@ -123,7 +124,22 @@ $up = $conn->prepare("UPDATE prs SET pdf_path=? WHERE id=?");
 $up->bind_param('si', $relPath, $prId);
 $up->execute();
 
-header('Content-Type: application/pdf');
-header('Content-Disposition: attachment; filename="'.$file.'"');
-readfile($pdfPath);
+if ($isAjax) {
+  header('Content-Type: application/json');
+  echo json_encode([
+    'ok' => true,
+    'id' => $prId,
+    'pr_number' => $prNumber,
+    'file' => $file,
+    'url' => $relPath,
+    'download' => 'download_pr.php?id='.$prId
+  ]);
+  exit;
+} else {
+  header('Content-Type: application/pdf');
+  header('Content-Disposition: attachment; filename="'.$file.'"');
+  readfile($pdfPath);
+}
+
+
 

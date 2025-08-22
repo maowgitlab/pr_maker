@@ -240,7 +240,7 @@ $prBase = "EBM.PR.LOGISTIK.{$todayCompact}-";
             <!-- Actions -->
             <div class="flex items-center justify-end gap-2 pt-2">
                 <button type="button" id="btnPreview" class="btn btn-ghost">Preview Data</button>
-                <button class="btn btn-primary">Generate PR (PDF)</button>
+                <button id="btnGenerate" class="btn btn-primary">Generate PR (PDF)</button>
             </div>
 
             <!-- hidden -->
@@ -302,6 +302,14 @@ $prBase = "EBM.PR.LOGISTIK.{$todayCompact}-";
         </div>
     </div>
 
+        <!-- Loading overlay -->
+    <div id="genOverlay" class="fixed inset-0 hidden items-center justify-center bg-black/40 z-50">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-sm text-center">
+            <div class="mx-auto mb-4 h-12 w-12 rounded-full border-4 border-gray-200 border-t-gray-800 animate-spin"></div>
+            <h3 class="text-base font-semibold">Generating PDF…</h3>
+            <p class="text-sm text-gray-500">Mohon tunggu, sedang memproses dokumen Anda.</p>
+        </div>
+    </div>
 
     <script>
         // ====== Helpers ======
@@ -595,12 +603,18 @@ $prBase = "EBM.PR.LOGISTIK.{$todayCompact}-";
         };
 
 
-        // Submit: isi hidden pr_number dari base + suffix & validasi minimal 1 item
-        document.getElementById('prForm').addEventListener('submit', (e) => {
+        // === AJAX submit untuk stabil di mobile + animasi ===
+        const form = document.getElementById('prForm');
+        const overlay = document.getElementById('genOverlay');
+        const btnGen = document.getElementById('btnGenerate');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // validasi yang sudah ada
             const base = document.getElementById('prBase').value || '';
             let suf = (document.getElementById('prSuffix').value || '').trim();
             if (!suf) {
-                e.preventDefault();
                 Swal.fire({
                     icon: 'warning',
                     title: 'Suffix No PR wajib diisi'
@@ -608,20 +622,18 @@ $prBase = "EBM.PR.LOGISTIK.{$todayCompact}-";
                 return;
             }
             if (!/^[0-9]+$/.test(suf) || parseInt(suf, 10) < 1) {
-                e.preventDefault();
                 Swal.fire({
                     icon: 'warning',
                     title: 'Suffix harus angka >= 1'
                 });
                 return;
             }
+            document.getElementById('prNumber').value = base + suf;
 
-            // Validasi ada minimal 1 baris item (item/description terisi)
             const items = [...document.querySelectorAll('input[name="item[]"]')].map(i => i.value.trim());
             const descs = [...document.querySelectorAll('input[name="description[]"]')].map(i => i.value.trim());
             const hasOne = items.some((v, i) => v !== '' || (descs[i] || '') !== '');
             if (!hasOne) {
-                e.preventDefault();
                 Swal.fire({
                     icon: 'warning',
                     title: 'Tambahkan minimal 1 item sebelum generate PDF'
@@ -629,8 +641,55 @@ $prBase = "EBM.PR.LOGISTIK.{$todayCompact}-";
                 return;
             }
 
-            document.getElementById('prNumber').value = base + suf;
+            // tampilkan overlay & disable tombol
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            btnGen?.setAttribute('disabled', 'disabled');
+            btnGen?.classList.add('opacity-60', 'cursor-not-allowed');
+
+            try {
+                const fd = new FormData(form);
+                fd.append('ajax', '1'); // minta JSON dari save_pr.php
+
+                const res = await fetch('save_pr.php', {
+                    method: 'POST',
+                    body: fd
+                });
+                if (!res.ok) throw new Error('Gagal memproses');
+                const j = await res.json();
+
+                if (j && j.ok && j.download) {
+                    // trigger unduh via GET endpoint (stabil di mobile)
+                    window.location.href = j.download;
+
+                    // sembunyikan overlay & info
+                    setTimeout(() => {
+                        overlay.classList.add('hidden');
+                        overlay.classList.remove('flex');
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'PDF siap diunduh',
+                            html: `No PR: <b>${(j.pr_number||'')}</b><br><a class="text-blue-600 underline" href="history.php">Buka History</a>`,
+                            confirmButtonText: 'Tutup'
+                        });
+                    }, 1200);
+                } else {
+                    throw new Error((j && j.msg) || 'Gagal generate');
+                }
+            } catch (err) {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: err.message || 'Terjadi kesalahan'
+                });
+            } finally {
+                btnGen?.removeAttribute('disabled');
+                btnGen?.classList.remove('opacity-60', 'cursor-not-allowed');
+            }
         });
+
 
         // Inisialisasi: tampilkan empty state (tanpa baris awal)
         renderEmptyState();
