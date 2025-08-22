@@ -302,7 +302,7 @@ $prBase = "EBM.PR.LOGISTIK.{$todayCompact}-";
         </div>
     </div>
 
-        <!-- Loading overlay -->
+    <!-- Loading overlay -->
     <div id="genOverlay" class="fixed inset-0 hidden items-center justify-center bg-black/40 z-50">
         <div class="bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-sm text-center">
             <div class="mx-auto mb-4 h-12 w-12 rounded-full border-4 border-gray-200 border-t-gray-800 animate-spin"></div>

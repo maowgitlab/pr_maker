@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__.'/../config.php';
+require_once __DIR__ . '/../config.php';
 $isAjax = isset($_POST['ajax']) && $_POST['ajax'] == '1';
 
 // Ambil POST
@@ -19,10 +19,10 @@ $adds         = $_POST['additional_info'] ?? [];
 
 // Kumpulkan baris
 $rows = [];
-for ($i=0; $i<count($items); $i++) {
+for ($i = 0; $i < count($items); $i++) {
   $item = trim($items[$i] ?? '');
   $desc = trim($descs[$i] ?? '');
-  if ($item==='' && $desc==='') continue;
+  if ($item === '' && $desc === '') continue;
 
   $deliveryDisp = '';
   if (!empty($deliveries[$i])) $deliveryDisp = date('d-M-y', strtotime($deliveries[$i]));
@@ -37,11 +37,13 @@ for ($i=0; $i<count($items); $i++) {
     'additional_info'   => trim($adds[$i] ?? ''),
   ];
 }
-if (empty($rows)) { die('Minimal 1 item diisi.'); }
+if (empty($rows)) {
+  die('Minimal 1 item diisi.');
+}
 
 // Simpan header
 $stmt = $conn->prepare("INSERT INTO prs (pr_number,department,purpose,pr_date) VALUES (?,?,?,?)");
-$stmt->bind_param('ssss',$prNumber,$department,$purpose,$dateYmd);
+$stmt->bind_param('ssss', $prNumber, $department, $purpose, $dateYmd);
 $stmt->execute();
 $prId = $stmt->insert_id;
 
@@ -49,7 +51,7 @@ $prId = $stmt->insert_id;
 $itemStmt = $conn->prepare("INSERT INTO pr_items (pr_id,item_name,description,unit,qty,stock_on_hand,delivery_date,additional_info) VALUES (?,?,?,?,?,?,?,?)");
 foreach ($rows as $r) {
   $dd = !empty($r['delivery_display']) ? date('Y-m-d', strtotime($r['delivery_display'])) : null;
-  $itemStmt->bind_param('isssiiss',$prId,$r['item'],$r['description'],$r['unit'],$r['qty'],$r['stock_on_hand'],$dd,$r['additional_info']);
+  $itemStmt->bind_param('isssiiss', $prId, $r['item'], $r['description'], $r['unit'], $r['qty'], $r['stock_on_hand'], $dd, $r['additional_info']);
   $itemStmt->execute();
 }
 
@@ -67,14 +69,14 @@ $head = [
 $logoRel = 'assets/logo.png';
 $signRel = 'assets/signature.png';
 
-$logoAbs = realpath(__DIR__.'/'.$logoRel);
-$signAbs = realpath(__DIR__.'/'.$signRel);
+$logoAbs = realpath(__DIR__ . '/' . $logoRel);
+$signAbs = realpath(__DIR__ . '/' . $signRel);
 
 $logoDataUri = ($logoAbs && is_file($logoAbs))
-  ? 'data:image/'.pathinfo($logoAbs, PATHINFO_EXTENSION).';base64,'.base64_encode(file_get_contents($logoAbs))
+  ? 'data:image/' . pathinfo($logoAbs, PATHINFO_EXTENSION) . ';base64,' . base64_encode(file_get_contents($logoAbs))
   : '';
 $signDataUri = ($signAbs && is_file($signAbs))
-  ? 'data:image/'.pathinfo($signAbs, PATHINFO_EXTENSION).';base64,'.base64_encode(file_get_contents($signAbs))
+  ? 'data:image/' . pathinfo($signAbs, PATHINFO_EXTENSION) . ';base64,' . base64_encode(file_get_contents($signAbs))
   : '';
 
 // Render HTML dari template
@@ -85,18 +87,21 @@ $signPath = $signRel;
 $logoFallback = $logoDataUri; // jika path relatif gagal, template akan pakai ini
 $signFallback = $signDataUri;
 $head = $head;
-include __DIR__.'/pdf_template.php';
+include __DIR__ . '/pdf_template.php';
 $html = ob_get_clean();
 
 // Siapkan DOMPDF
-$generatedDir = __DIR__.'/generated';
-if (!is_dir($generatedDir)) { @mkdir($generatedDir, 0775, true); }
-
-if (is_file(__DIR__.'/vendor/autoload.php')) {
-  require __DIR__.'/vendor/autoload.php';           // Composer
-} else {
-  require __DIR__.'/vendor/dompdf/autoload.inc.php';// Manual
+$generatedDir = __DIR__ . '/generated';
+if (!is_dir($generatedDir)) {
+  @mkdir($generatedDir, 0775, true);
 }
+
+if (is_file(__DIR__ . '/vendor/autoload.php')) {
+  require __DIR__ . '/vendor/autoload.php';           // Composer
+} else {
+  require __DIR__ . '/vendor/dompdf/autoload.inc.php'; // Manual
+}
+
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -109,17 +114,17 @@ $options->setChroot(__DIR__);
 $dompdf = new Dompdf($options);
 
 // TIDAK lagi memakai set_base_path() (deprecated di analyzer)
-$dompdf->loadHtml($html,'UTF-8');
-$dompdf->setPaper('A4','portrait');
+$dompdf->loadHtml($html, 'UTF-8');
+$dompdf->setPaper('A4', 'portrait');
 $dompdf->render();
 
 // Simpan & kirim
-$file = preg_replace('/[^A-Za-z0-9._-]/','_', $prNumber).'_'.date('Ymd_His').'.pdf';
+$file = preg_replace('/[^A-Za-z0-9._-]/', '_', $prNumber) . '_' . date('Ymd_His') . '.pdf';
 $pdfPath = $generatedDir . '/' . $file;
 file_put_contents($pdfPath, $dompdf->output());
 
 // >>> SIMPAN JEJAK FILE KE DB <<<
-$relPath = 'generated/'.$file; // path relatif dari folder public/
+$relPath = 'generated/' . $file; // path relatif dari folder public/
 $up = $conn->prepare("UPDATE prs SET pdf_path=? WHERE id=?");
 $up->bind_param('si', $relPath, $prId);
 $up->execute();
@@ -132,14 +137,11 @@ if ($isAjax) {
     'pr_number' => $prNumber,
     'file' => $file,
     'url' => $relPath,
-    'download' => 'download_pr.php?id='.$prId
+    'download' => 'download_pr.php?id=' . $prId
   ]);
   exit;
 } else {
   header('Content-Type: application/pdf');
-  header('Content-Disposition: attachment; filename="'.$file.'"');
+  header('Content-Disposition: attachment; filename="' . $file . '"');
   readfile($pdfPath);
 }
-
-
-
